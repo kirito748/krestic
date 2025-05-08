@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Игра Крестики-Нолики</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: #f5f9fc; /* very light blue-white */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #4a4a4a; /* dark gray text */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    max-height: 600px;
+    padding: 20px 10px 30px;
+    user-select: none;
+  }
+  h1 {
+    font-weight: 700;
+    margin-bottom: 10px;
+    font-size: 2rem;
+    color: #0096c7; /* medium turquoise blue */
+    letter-spacing: 0.04em;
+  }
+  #status {
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+    min-height: 1.5em;
+    color: #2a9d8f; /* turquoise */
+    text-align: center;
+    font-weight: 600;
+  }
+  /* Board container */
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    width: 320px;
+    max-width: 95vw;
+    height: 320px;
+    max-height: 95vw;
+    background: #e0e7ee; /* pale blue-gray */
+    border-radius: 12px;
+    box-shadow: 0 0 8px #c4d9e9 inset;
+  }
+  /* Each cell */
+  .cell {
+    background: #ffffff; /* white background */
+    border: 2px solid #c4d9e9; /* light blue-gray border */
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5rem;
+    color: #0096c7; /* turquoise-blue for marks */
+    user-select: none;
+    transition: background-color 0.25s ease, border-color 0.3s ease;
+    box-shadow: 0 2px 6px #d8e6f1; /* subtle shadow */
+  }
+  .cell:hover {
+    background-color: #d0efff; /* subtle light blue hover */
+    border-color: #4db6b6; /* turquoise border on hover */
+  }
+  .cell.disabled {
+    cursor: default;
+    color: #a3a3a3; /* muted gray for disabled */
+    background-color: #f0f4f7;
+    border-color: #f0f4f7;
+    box-shadow: none;
+  }
+  /* Highlight winning cells */
+  .cell.winning {
+    color: #2a9d8f; /* turquoise */
+    background-color: #caf0f8; /* pale turquoise */
+    border-color: #2a9d8f;
+    box-shadow: 0 0 15px #2a9d8f88;
+  }
+  /* Reset button */
+  #reset-btn {
+    margin-top: 20px;
+    padding: 12px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: #2a9d8f; /* turquoise */
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 12px #2a9d8fcc;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  #reset-btn:hover,
+  #reset-btn:focus {
+    background: #23867a;
+    box-shadow: 0 6px 16px #216c66cc;
+    outline: none;
+  }
+  /* Responsive text size for small screens */
+  @media (max-width: 360px) {
+    .cell {
+      font-size: 4rem;
+    }
+    body {
+      padding: 15px 8px 20px;
+    }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 8px;
+    }
+    #status {
+      font-size: 1.1rem;
+    }
+    #reset-btn {
+      padding: 10px 20px;
+      font-size: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>Крестики-Нолики</h1>
+<div id="status" aria-live="polite" aria-atomic="true">Ходит: Крестик (X)</div>
+<div id="board" role="grid" aria-label="Игровое поле крестики-нолики">
+  <div class="cell" role="gridcell" tabindex="0" data-index="0" aria-label="Ячейка 1"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="1" aria-label="Ячейка 2"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="2" aria-label="Ячейка 3"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="3" aria-label="Ячейка 4"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="4" aria-label="Ячейка 5"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="5" aria-label="Ячейка 6"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="6" aria-label="Ячейка 7"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="7" aria-label="Ячейка 8"></div>
+  <div class="cell" role="gridcell" tabindex="0" data-index="8" aria-label="Ячейка 9"></div>
+</div>
+<button id="reset-btn" type="button" aria-label="Начать новую игру">Начать заново</button>
+
+<script>
+  (function(){
+    const board = document.getElementById('board');
+    const cells = Array.from(document.querySelectorAll('.cell'));
+    const status = document.getElementById('status');
+    const resetBtn = document.getElementById('reset-btn');
+
+    const Player = {
+      X: 'X',
+      O: 'O'
+    };
+
+    let currentPlayer = Player.X;
+    let boardState = Array(9).fill(null);
+    let gameActive = true;
+
+    const winConditions = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    function handleCellClick(e) {
+      const cell = e.target;
+      const index = parseInt(cell.getAttribute('data-index'));
+      if (!gameActive || boardState[index] !== null) {
+        return;
+      }
+      makeMove(cell, index);
+    }
+
+    function handleCellKeydown(e) {
+      if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.target.click();
+      }
+    }
+
+    function makeMove(cell, index) {
+      boardState[index] = currentPlayer;
+      cell.textContent = currentPlayer;
+      cell.classList.add('disabled');
+      if (checkWin()) {
+        gameActive = false;
+        status.textContent = `Победил: ${currentPlayer === Player.X ? 'Крестик (X)' : 'Нолик (O)'}`;
+        highlightWinningCells();
+      } else if (boardState.every(cell => cell !== null)) {
+        gameActive = false;
+        status.textContent = 'Ничья!';
+      } else {
+        togglePlayer();
+        status.textContent = `Ходит: ${currentPlayer === Player.X ? 'Крестик (X)' : 'Нолик (O)'}`;
+      }
+    }
+
+    function togglePlayer() {
+      currentPlayer = currentPlayer === Player.X ? Player.O : Player.X;
+    }
+
+    function checkWin() {
+      return winConditions.some(condition => {
+        const [a,b,c] = condition;
+        return boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c];
+      });
+    }
+
+    function highlightWinningCells() {
+      for (const condition of winConditions) {
+        const [a,b,c] = condition;
+        if (boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]) {
+          cells[a].classList.add('winning');
+          cells[b].classList.add('winning');
+          cells[c].classList.add('winning');
+        }
+      }
+    }
+
+    function resetGame() {
+      boardState.fill(null);
+      gameActive = true;
+      currentPlayer = Player.X;
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('disabled', 'winning');
+      });
+      status.textContent = `Ходит: Крестик (X)`;
+    }
+
+    cells.forEach(cell => {
+      cell.addEventListener('click', handleCellClick);
+      cell.addEventListener('keydown', handleCellKeydown);
+    });
+    resetBtn.addEventListener('click', resetGame);
+
+    status.textContent = `Ходит: Крестик (X)`;
+  })();
+</script>
+</body>
+</html>
+</content>
+</create_file>
